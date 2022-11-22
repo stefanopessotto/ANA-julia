@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.16
+# v0.19.9
 
 using Markdown
 using InteractiveUtils
@@ -13,6 +13,9 @@ macro bind(def, element)
         el
     end
 end
+
+# ╔═╡ 68928913-4b3a-44d8-b36f-25063b09081c
+using SparseArrays
 
 # ╔═╡ 000a42f0-6a6e-11ed-07c8-17d3667314e4
 function multiplyVecs(a::Vector{Float32},b::Vector{Float32})
@@ -195,47 +198,6 @@ begin
 	plotvector(vg_rotated, "vg'");
 end
 
-# ╔═╡ 43a1484a-30fa-4e5b-bc2d-0eef50d19de8
-# ╠═╡ disabled = true
-#=╠═╡
-function givens_factorization(A)
-	rows, cols = size(A);
-	Q = zeros(rows,cols,2);
-	for i in 1:rows
-		for j in (i+1):cols
-			newG, value = givens(A[:,i], i, j);
-			Q[i,j,1] = newG.c;
-			Q[i,j,2] = newG.s;
-			A[:,i] = value;
-			A[:,j] = 0;
-		end
-	end
-	return (Q, A);
-end
-  ╠═╡ =#
-
-# ╔═╡ 767c5c1c-3b8e-4a75-8a88-52da60e344d4
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	Ag = [1 0; 0 1];
-	Qg_ext, Rg = givens_factorization(Ag);
-	_, _, idx3last = size(Qg_ext);
-	Qg = Qg_ext[:,:,idx3last];
-	for i in 1:idx3last
-		Qg = Qg * Qg_ext[:, :, i];
-	end
-	println(Qg);
-	println(Rg);
-	plot();
-	basecircle();
-	plotvector(Ag[:,1], "v1");
-	plotvector(Ag[:,2], "v2");
-	plotvector(Qg[:,1], "q1");
-	plotvector(Qg[:,2], "q2");
-end
-  ╠═╡ =#
-
 # ╔═╡ cbb7b09f-b226-4e27-91f1-4840f7e30f36
 begin
 	import PlutoUI
@@ -253,12 +215,78 @@ begin
 	plotvector(k_rotated_angle, "rotated");
 end
 
+# ╔═╡ c90ef9ab-0be9-4bf1-91f5-e7a40145f1a5
+function givens_factorization(A)
+	rows, cols = size(A);
+	Qs = []
+	R = A;
+	for j in 1:cols
+		for i in rows:-1:(j+1)
+			#Compute the rotation for R[i,j-1] - R[i,j]
+			current_norm = sqrt(R[i, j]^2 + R[i-1, j]^2);
+			rot = Matrix(sparse(1.0I, rows, rows));
+			
+			rot[i,i] = rot[i-1,i-1] = R[i-1, j]/current_norm;
+			rot[i-1,i] = -R[i, j]/current_norm;
+			rot[i,i-1] = R[i, j]/current_norm;
+			angle = acosd(R[i-1, j]/current_norm);
+			push!(Qs, [j, i, angle]);
+			R = transpose(rot) * R;
+		end
+	end
+	return (Qs, R);
+end
+
+# ╔═╡ dae94ca7-fecf-4bbf-8ed9-343ada68e790
+function identityForGivens(dim, j::Int64, i::Int64, angle)
+	ret = Matrix(sparse(1.0I, dim, dim))
+	ret[i,i] = ret[i-1,i-1] = cosd(angle);
+	ret[i-1,i] = -sind(angle);
+	ret[i,i-1] = sind(angle);
+	return ret
+end
+
+# ╔═╡ 7810b577-f352-4270-80b8-33631da0297b
+function Givens_Compute_Q(dim, Qs)
+	start = pop!(Qs);
+	foldr_init = identityForGivens(dim, floor(Int, start[1]), floor(Int, start[2]), start[3]);
+	return foldr((x, acc) -> identityForGivens(dim, floor(Int, x[1]), floor(Int, x[2]), x[3]) * acc, Qs, init=foldr_init);
+	#expanded = map(x -> identityForGivens(dim, floor(Int, x[1]), floor(Int, x[2]), x[3]), Qs);
+	#return foldr(*, expanded);
+end
+
+# ╔═╡ 936fe4e4-b3e8-457b-b0a9-03d98e22ec9f
+function Apply_Rotations(Qs, R)
+	return foldr((x, acc) -> LinearAlgebra.Givens(floor(Int, x[2]-1), floor(Int, x[2]), cosd(x[3]), -sind(x[3])) * acc, Qs, init=R)
+end
+
+# ╔═╡ 83dff1fe-bf17-45a8-b5d4-c652e7dc947a
+begin
+	MATRIX = Matrix{Float64}([
+		0.8147 0.0975 0.1576;
+		0.9058 0.2785 0.9706;
+		0.1270 0.5469 0.9572;
+		0.9134 0.9575 0.4854;
+		0.6324 0.9649 0.8003
+	]);
+	MATRIX_size, _ = size(MATRIX);
+	Givens_Qs, Givens_R = givens_factorization(MATRIX);
+	#Compute Q
+	#Givens_Q = Givens_Compute_Q(MATRIX_size, Givens_Qs)
+	#Givens_Q * Givens_R
+	Apply_Rotations(Givens_Qs, Givens_R)
+end
+
+# ╔═╡ 0d2ffeec-38db-43c8-a72b-dec01b0f29fd
+Apply_Rotations([[1,2,-53.13010235415599]], [3; 4])
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
 Plots = "~1.36.3"
@@ -271,7 +299,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.3"
 manifest_format = "2.0"
-project_hash = "4199a66cf8e9efb5f7aa3d2322581f430331fdb9"
+project_hash = "05d3399215720223ad420873ad20a9e96e07452b"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -1212,9 +1240,14 @@ version = "1.4.1+0"
 # ╠═6b23b919-455b-41ab-b768-ef30cbd2926f
 # ╠═30f1cd9c-9380-4d45-9e88-3b3577bb72f3
 # ╠═383a2e81-f99f-410f-b05f-7aeb49465412
-# ╠═43a1484a-30fa-4e5b-bc2d-0eef50d19de8
-# ╠═767c5c1c-3b8e-4a75-8a88-52da60e344d4
 # ╠═cbb7b09f-b226-4e27-91f1-4840f7e30f36
 # ╠═48020117-7bef-4368-9524-c2c798570330
+# ╠═68928913-4b3a-44d8-b36f-25063b09081c
+# ╠═c90ef9ab-0be9-4bf1-91f5-e7a40145f1a5
+# ╠═dae94ca7-fecf-4bbf-8ed9-343ada68e790
+# ╠═7810b577-f352-4270-80b8-33631da0297b
+# ╠═936fe4e4-b3e8-457b-b0a9-03d98e22ec9f
+# ╠═83dff1fe-bf17-45a8-b5d4-c652e7dc947a
+# ╠═0d2ffeec-38db-43c8-a72b-dec01b0f29fd
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
