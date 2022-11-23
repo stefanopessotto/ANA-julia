@@ -218,7 +218,7 @@ end
 # ╔═╡ c90ef9ab-0be9-4bf1-91f5-e7a40145f1a5
 function givens_factorization(A)
 	rows, cols = size(A);
-	Qs = []
+	Qs = [];
 	R = A;
 	for j in 1:cols
 		for i in rows:-1:(j+1)
@@ -238,6 +238,8 @@ function givens_factorization(A)
 end
 
 # ╔═╡ dae94ca7-fecf-4bbf-8ed9-343ada68e790
+# ╠═╡ disabled = true
+#=╠═╡
 function identityForGivens(dim, j::Int64, i::Int64, angle)
 	ret = Matrix(sparse(1.0I, dim, dim))
 	ret[i,i] = ret[i-1,i-1] = cosd(angle);
@@ -245,8 +247,10 @@ function identityForGivens(dim, j::Int64, i::Int64, angle)
 	ret[i,i-1] = sind(angle);
 	return ret
 end
+  ╠═╡ =#
 
 # ╔═╡ 7810b577-f352-4270-80b8-33631da0297b
+#=╠═╡
 function Givens_Compute_Q(dim, Qs)
 	start = pop!(Qs);
 	foldr_init = identityForGivens(dim, floor(Int, start[1]), floor(Int, start[2]), start[3]);
@@ -254,6 +258,7 @@ function Givens_Compute_Q(dim, Qs)
 	#expanded = map(x -> identityForGivens(dim, floor(Int, x[1]), floor(Int, x[2]), x[3]), Qs);
 	#return foldr(*, expanded);
 end
+  ╠═╡ =#
 
 # ╔═╡ 936fe4e4-b3e8-457b-b0a9-03d98e22ec9f
 function Apply_Rotations(Qs, R)
@@ -277,8 +282,83 @@ begin
 	Apply_Rotations(Givens_Qs, Givens_R)
 end
 
-# ╔═╡ 0d2ffeec-38db-43c8-a72b-dec01b0f29fd
-Apply_Rotations([[1,2,-53.13010235415599]], [3; 4])
+# ╔═╡ c949ba4f-ddca-4f11-a9b1-46218c90ffc8
+begin
+	#Householder reflection of k wrt e1
+	H_e1 = I - 2 * e1 * transpose(e1);
+	k_reflected = H_e1 * k;
+	plot();
+	basecircle();
+	plotvector(k, "k");
+	plotvector(e1, "e1");
+	plotvector(k_reflected, "reflected");
+end
+
+# ╔═╡ 18dbf9f7-cc95-43ea-b88c-336983423387
+begin
+	# orthogonal
+	println(transpose(H_e1) * H_e1 == H_e1 * transpose(H_e1) == I);
+	# symmatric
+	println(transpose(H_e1) == H_e1);
+end
+
+# ╔═╡ 5014605a-f2c0-4ad4-bf6a-f99d55dcb79d
+function householder_vector_product(v::Array{T} where {T<:Number}, w::Array{T} where {T<:Number})
+	return w - 2 * dot(transpose(v), w) * v;
+end
+
+# ╔═╡ 28057d46-614d-48f2-a479-a87d33045b20
+householder_product(e1, k)
+
+# ╔═╡ f46951c4-4b38-4a70-b012-a9b3487f0c5a
+begin
+	#Using a special v, w becomes a multiple of the canonical vectors
+	H_w = [2; 5];
+	H_pv = (H_w + norm(H_w) * e1) / norm(H_w + norm(H_w) * e1);
+	H_nv = (H_w - norm(H_w) * e1) / norm(H_w - norm(H_w) * e1);
+	H_pr = householder_vector_product(H_pv, H_w);
+	H_nr = householder_vector_product(H_nv, H_w);
+	println(H_pr);
+	println(H_nr);
+	plot();
+	plotvector(H_w, "w");
+	plotvector(H_pv, "+v");
+	plotvector(H_nv, "-v");
+	plotvector(H_pr, "H(+v)w");
+	plotvector(H_nr, "H(-v)w");
+end
+
+# ╔═╡ 82afc2ec-5faa-4504-a4c2-70d525c3a1af
+function householder_factorization(A)
+	rows, cols = size(A);
+	Qs = [];
+	for i in 1:cols
+		current_col = A[:, i];
+		if i > 1
+			for j in 1:(i-1)
+				current_col[j] = 0;
+			end
+		end
+		#Build H from current col
+		e_i = I[1:rows, i];
+		current_v = (current_col + norm(current_col) * e_i) / norm(current_col + norm(current_col) * e_i) 
+		current_H = I(rows) - 2 * current_v * transpose(current_v);
+		
+		A = current_H * A;
+		push!(Qs, current_col);
+	end
+	return (Qs, A);
+end
+
+# ╔═╡ f9db4bbb-01a3-492d-acb0-3ef504d4e334
+begin
+	MATRIX_SAMPLE = [
+		2 -2 18;
+		2  1  0;
+		1  2  0;
+	]
+	Qs, R = householder_factorization(MATRIX_SAMPLE)
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1248,6 +1328,12 @@ version = "1.4.1+0"
 # ╠═7810b577-f352-4270-80b8-33631da0297b
 # ╠═936fe4e4-b3e8-457b-b0a9-03d98e22ec9f
 # ╠═83dff1fe-bf17-45a8-b5d4-c652e7dc947a
-# ╠═0d2ffeec-38db-43c8-a72b-dec01b0f29fd
+# ╠═c949ba4f-ddca-4f11-a9b1-46218c90ffc8
+# ╠═18dbf9f7-cc95-43ea-b88c-336983423387
+# ╠═5014605a-f2c0-4ad4-bf6a-f99d55dcb79d
+# ╠═28057d46-614d-48f2-a479-a87d33045b20
+# ╠═f46951c4-4b38-4a70-b012-a9b3487f0c5a
+# ╠═82afc2ec-5faa-4504-a4c2-70d525c3a1af
+# ╠═f9db4bbb-01a3-492d-acb0-3ef504d4e334
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
