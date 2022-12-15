@@ -4,131 +4,84 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 000a42f0-6a6e-11ed-07c8-17d3667314e4
-function multiplyVecs(a::Vector{Float32},b::Vector{Float32})
-	size = length(a);
-	if(length(a) != length(b))
-		error("Dimension must match!");
-	end
-	return [a[i]*b[i] for i in 1:size]
-end
+# ╔═╡ 8c70cd74-85fa-4b2a-82f8-ab4f1b1ac3bb
+	using LinearAlgebra;
 
-# ╔═╡ c240b882-90b2-43e0-90d6-266218c9a76e
-function plotvector(a, name="")
-	plot!([0,a[1]],[0,a[2]],arrow=true, labels=name, legend = :outertopleft);
-end
-
-# ╔═╡ b2515529-b438-43f6-8f4d-1dbeb0cfa9f5
-function basecircle()
-	xc = yc = range(-1, 1, 100);
-	contour!(xc, yc, (x, y) -> x^2 + y^2, levels=1);
-end
-
-# ╔═╡ 39150468-fed6-4b00-9fe3-63864fba61f0
+# ╔═╡ c493b518-2faf-4b02-a0e3-9b6e0cf6b186
 begin
-	using Plots;
-	plot();
-	v = Vector{Float32}([0,1]);
-	w = Vector{Float32}([1,0]);
-	plotvector(v, "v");
-	plotvector(w, "w");
-	basecircle();
+	using Plots
+	using Random
+	t = [1; 1; 1];
+	a1 = [-1; 1; 1];
+	a2 = [ 1; 1; 1];
+	samples = 500;
+	
+	X_1 = range(-30, 30, samples) * a1[1] + rand((-1:0.1:1), samples);
+	X_2 = range(-30, 30, samples) * a2[1] + rand((-1:0.1:1), samples);
+	Y_1 = range(0, 70, samples) * a1[2] + rand((-1:0.1:1), samples);
+	Y_2 = range(0, 70, samples) * a2[2] + rand((-1:0.1:1), samples);
+	Z_1 = range(-10, 60, samples) * a1[3] + rand((-1:0.1:1), samples);
+	Z_2 = range(-10, 60, samples) * a2[3] + rand((-1:0.1:1), samples);
+	
+	scatter(X_1, Y_1, Z_1, seriestype=:scatter, markershape=:cross, markersize = 2);
+	scatter!(X_2, Y_2, Z_2, seriestype=:scatter, markershape=:cross, markersize = 2);
 end
 
-# ╔═╡ 16ba1e01-598b-4491-9954-32eaa60c2f00
-function plotvector3d(a, name="")
-	plot!([0,a[1]],[0,a[2]],[0, a[3]],arrow=true, labels=name, legend = :outertopleft);
-end
-
-# ╔═╡ 9e2bb0c2-5f3a-4663-b306-85b9c8b550b7
+# ╔═╡ 00b9aba7-05bb-429d-bb03-5fd83237c803
 begin
-	using LinearAlgebra
-	plot()
-	k = [3,2];
-	e1 = [1,0];
-	e2 = [0,1];
-	k = k/norm(k);
-	plotvector(k, "k");
-	plotvector(e1, "e1");
-	plotvector(e2, "e2");
-	basecircle();
+	X_TOT = vcat(X_1, X_2);
+	Y_TOT = vcat(Y_1, Y_2);
+	Z_TOT = vcat(Z_1, Z_2);
+	MATRIX = hcat(X_TOT, Y_TOT, Z_TOT);
+	decomposed = svd(MATRIX);
+	#scatter(MATRIX[:,1], MATRIX[:,2], MATRIX[:,3], seriestype=:scatter, markershape=:cross, markersize = 2);
 end
 
-# ╔═╡ 0cbdc6d0-1087-4b12-b95f-906d0d8c5460
-function basesphere()
-	n_s = 100
-	u_s = range(-pi, pi; length = n_s)
-	v_s = range(0, pi; length = n_s)
-	x_s = cos.(u_s) * sin.(v_s)'
-	y_s = sin.(u_s) * sin.(v_s)'
-	z_s = ones(n_s) * cos.(v_s)'
-	const_color = cgrad( [ RGB{Float64}(0.5,0.5,0.5) for _ in 1:2 ] )
-	surface!(x_s, y_s, z_s, color = const_color, minogrid = :false, colorbar = false, alpha = 0.5)
-end
-
-# ╔═╡ 6f1cbff4-96bf-4970-9058-b49044dc6d75
+# ╔═╡ e7d9f371-18c6-4af3-9037-9029b891e197
 begin
-	#Determine angle of k wrt e1
-	angle = acosd(transpose(k)*e1)/(norm(k)*norm(e1))
-	print(angle);
+	#Project on first two components
+	dec_1 =  decomposed.S[1] .* reshape(decomposed.U[:,1], 1000, 1) * reshape(decomposed.Vt[1,:], 1, 3) + decomposed.S[2] * reshape(decomposed.U[:,2], 1000, 1) * reshape(decomposed.Vt[2,:], 1, 3);
+	scatter(dec_1[:,1], dec_1[:,2], dec_1[:,3], seriestype=:scatter, markershape=:cross, markersize = 2);
 end
 
-# ╔═╡ ef7fde60-db68-4b68-a2fd-07e9957e64a8
+# ╔═╡ ec34eae9-c7e9-436e-97b6-a433b36b0329
 begin
-	#Since e1 and e2 are orthogonal, the product should be zero
-	transpose(e1)*e2 == transpose(e2)*e1 == 0
+	#Project on first two components
+	dec_2 =  decomposed.S[2] .* reshape(decomposed.U[:,2], 1000, 1) * reshape(decomposed.Vt[2,:], 1, 3) + decomposed.S[3] * reshape(decomposed.U[:,3], 1000, 1) * reshape(decomposed.Vt[3,:], 1, 3);
+	scatter(dec_2[:,1], dec_2[:,2], dec_2[:,3], seriestype=:scatter, markershape=:cross, markersize = 2);
 end
 
-# ╔═╡ 31680638-5366-4511-90f0-fbf4160e673e
+# ╔═╡ 2ee5e75f-b05f-4664-82ef-255df112d91c
 begin
-	#Projection of k wrt e1
-	k_par_e1 = transpose(e1)*k*e1;
-	k_perp_e1 = k - k_par_e1;
-	plot();
-	plotvector(k_par_e1, "k // e1");
-	plotvector(k_perp_e1, "k _|_ e1");
-	plotvector(k, "k");
-	#plotvector(e1, "e1");
-	print(k == k_par_e1 + k_perp_e1)
-	basecircle();
+	scatter(1:3, decomposed.S);
 end
 
-# ╔═╡ 2cf19c10-0f9d-41d2-8dc7-23cbbd492b2e
-function graham_schmidt_naive(A )
-	r,c = size(A);
-	Q = zeros(r, c);
-	R = zeros(c, c);
-	for i in 1:r
-		z = A[:, i];
-		sub = zeros(r, 1)
-		for j in 1:(i-1)
-			#Calculate the j-th element as q'v(i)
-			R[j, i] = transpose(Q[:, j]) * A[:, i]
-			#Sum the component of the j-th vector 
-			sub = sub + R[j, i] * Q[:, j];
-		end
-		#Subtract the accumulated sum
-		z = z - sub;
-		R[i, i] = norm(z);
-		Q[:, i] = z / R[i, i];
-	end
-	return (Q,R)
+# ╔═╡ 8c36d8d6-55d7-45da-89e5-8146e5fc6234
+begin
+	retta_x = range(0, 2, 20);
+	retta_y = 2 .- retta_x;
+	scatter(retta_x, retta_y, seriestype=:scatter, markershape=:cross, markersize = 2, labels="y=2-x");
+	retta_matrix = hcat(retta_x, retta_y);
+	retta_dec = svd(retta_matrix);
+	plot!([0, retta_dec.V[1,1]], [0, retta_dec.V[2,1]], arrow=true, labels="v(:,1)");
+	plot!([0, retta_dec.V[1,2]], [0, retta_dec.V[2,2]], arrow=true, labels="v(:,2)");
 end
 
-# ╔═╡ 971cee94-854d-443d-9708-dc5df9c210cc
-graham_schmidt_naive(I(10))
+# ╔═╡ 9db109d5-728a-4e15-8bfa-96ef13ac829f
+begin
+	retta_minus = 1/2 * [1 1] * retta_dec.U[:,1] * retta_dec.S[1] * retta_dec.Vt[:,1];
+	plot!(retta_x, retta_minus, seriestype=:scatter, markershape=:cross, markersize = 2, labels="y=2-x");
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
-Plots = "~1.36.3"
-PlutoUI = "~0.7.48"
+Plots = "~1.36.4"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -137,13 +90,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.3"
 manifest_format = "2.0"
-project_hash = "05d3399215720223ad420873ad20a9e96e07452b"
-
-[[deps.AbstractPlutoDingetjes]]
-deps = ["Pkg"]
-git-tree-sha1 = "8eaf9f1b4921132a4cff3f36a1d9ba923b14a481"
-uuid = "6e696c72-6542-2067-7265-42206c756150"
-version = "1.1.4"
+project_hash = "36d9e095951242f43a08a4b7a5628541ec322701"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -154,6 +101,11 @@ uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+
+[[deps.BitFlags]]
+git-tree-sha1 = "43b1a4a8f797c1cddadf60499a8a077d4af2cd2d"
+uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
+version = "0.1.7"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -178,6 +130,12 @@ deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
 git-tree-sha1 = "38f7a08f19d8810338d4f5085211c7dfa5d5bdd8"
 uuid = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
 version = "0.1.4"
+
+[[deps.CodecZlib]]
+deps = ["TranscodingStreams", "Zlib_jll"]
+git-tree-sha1 = "ded953804d019afa9a3f98981d99b33e3db7b6da"
+uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
+version = "0.7.0"
 
 [[deps.ColorSchemes]]
 deps = ["ColorTypes", "ColorVectorSpace", "Colors", "FixedPointNumbers", "Random"]
@@ -307,16 +265,16 @@ uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
 version = "3.3.8+0"
 
 [[deps.GR]]
-deps = ["Base64", "DelimitedFiles", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Pkg", "Preferences", "Printf", "Random", "Serialization", "Sockets", "Test", "UUIDs"]
-git-tree-sha1 = "00a9d4abadc05b9476e937a5557fcce476b9e547"
+deps = ["Artifacts", "Base64", "DelimitedFiles", "Downloads", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Pkg", "Preferences", "Printf", "Random", "Serialization", "Sockets", "TOML", "Tar", "Test", "UUIDs", "p7zip_jll"]
+git-tree-sha1 = "051072ff2accc6e0e87b708ddee39b18aa04a0bc"
 uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
-version = "0.69.5"
+version = "0.71.1"
 
 [[deps.GR_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "GLFW_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pixman_jll", "Pkg", "Qt5Base_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "bc9f7725571ddb4ab2c4bc74fa397c1c5ad08943"
+git-tree-sha1 = "501a4bf76fd679e7fcd678725d5072177392e756"
 uuid = "d2c73de3-f751-5644-a686-071e5b155ba9"
-version = "0.69.1+0"
+version = "0.71.1+0"
 
 [[deps.Gettext_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "XML2_jll"]
@@ -326,9 +284,9 @@ version = "0.21.0+0"
 
 [[deps.Glib_jll]]
 deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Pkg", "Zlib_jll"]
-git-tree-sha1 = "d3b3624125c1474292d0d8ed0f65554ac37ddb23"
+git-tree-sha1 = "fb83fbe02fe57f2c068013aa94bcdf6760d3a7a7"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.74.0+2"
+version = "2.74.0+1"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -342,34 +300,16 @@ uuid = "42e2da0e-8278-4e71-bc24-59509adca0fe"
 version = "1.0.2"
 
 [[deps.HTTP]]
-deps = ["Base64", "Dates", "IniFile", "Logging", "MbedTLS", "NetworkOptions", "Sockets", "URIs"]
-git-tree-sha1 = "0fa77022fe4b511826b39c894c90daf5fce3334a"
+deps = ["Base64", "CodecZlib", "Dates", "IniFile", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
+git-tree-sha1 = "e1acc37ed078d99a714ed8376446f92a5535ca65"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "0.9.17"
+version = "1.5.5"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg"]
 git-tree-sha1 = "129acf094d168394e80ee1dc4bc06ec835e510a3"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "2.8.1+1"
-
-[[deps.Hyperscript]]
-deps = ["Test"]
-git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
-uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-version = "0.0.4"
-
-[[deps.HypertextLiteral]]
-deps = ["Tricks"]
-git-tree-sha1 = "c47c5fa4c5308f27ccaac35504858d8914e102f9"
-uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
-version = "0.9.4"
-
-[[deps.IOCapture]]
-deps = ["Logging", "Random"]
-git-tree-sha1 = "f7be53659ab06ddc986428d3a9dcc95f6fa6705a"
-uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
-version = "0.2.2"
 
 [[deps.IniFile]]
 git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
@@ -492,9 +432,9 @@ version = "1.42.0+0"
 
 [[deps.Libiconv_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "c7cb1f5d892775ba13767a87c7ada0b980ea0a71"
+git-tree-sha1 = "42b62845d70a619f063a7da093d995ec8e15e778"
 uuid = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
-version = "1.16.1+2"
+version = "1.16.1+1"
 
 [[deps.Libmount_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -527,10 +467,11 @@ version = "0.3.19"
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
-[[deps.MIMEs]]
-git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
-uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
-version = "0.1.4"
+[[deps.LoggingExtras]]
+deps = ["Dates", "Logging"]
+git-tree-sha1 = "cedb76b37bc5a6c702ade66be44f831fa23c681e"
+uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
+version = "1.0.0"
 
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
@@ -597,6 +538,12 @@ deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 version = "0.8.1+0"
 
+[[deps.OpenSSL]]
+deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
+git-tree-sha1 = "df6830e37943c7aaa10023471ca47fb3065cc3c4"
+uuid = "4d8831e6-92b7-49fb-bdf8-b643e874388c"
+version = "1.3.2"
+
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "f6e9dba33f9f2c44e08a020b0caf6903be540004"
@@ -661,15 +608,9 @@ version = "1.3.1"
 
 [[deps.Plots]]
 deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "JLFzf", "JSON", "LaTeXStrings", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "RelocatableFolders", "Requires", "Scratch", "Showoff", "SnoopPrecompile", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
-git-tree-sha1 = "b72f499415dae304ba39cdc0822c850cebdfdfa6"
+git-tree-sha1 = "c411cd689fbcdd2c01b79db2817114e4321c6fa2"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.36.3"
-
-[[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "efc140104e6d0ae3e7e30d56c98c4a927154d684"
-uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.48"
+version = "1.36.4"
 
 [[deps.Preferences]]
 deps = ["TOML"]
@@ -743,6 +684,11 @@ git-tree-sha1 = "91eddf657aca81df9ae6ceb20b959ae5653ad1de"
 uuid = "992d4aef-0814-514b-bc4d-f2e9a6c4116f"
 version = "1.0.3"
 
+[[deps.SimpleBufferStream]]
+git-tree-sha1 = "874e8867b33a00e784c8a7e4b60afe9e037b74e1"
+uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
+version = "1.1.0"
+
 [[deps.SnoopPrecompile]]
 git-tree-sha1 = "f604441450a3c0569830946e5b33b78c928e1a85"
 uuid = "66db9d55-30c0-4569-8b51-7e840670fc0c"
@@ -803,15 +749,16 @@ version = "0.1.1"
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
-[[deps.Tricks]]
-git-tree-sha1 = "6bac775f2d42a611cdfcd1fb217ee719630c4175"
-uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
-version = "0.1.6"
+[[deps.TranscodingStreams]]
+deps = ["Random", "Test"]
+git-tree-sha1 = "8a75929dcd3c38611db2f8d08546decb514fcadf"
+uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
+version = "0.9.9"
 
 [[deps.URIs]]
-git-tree-sha1 = "e59ecc5a41b000fa94423a578d29290c7266fc10"
+git-tree-sha1 = "ac00576f90d8a259f2c9d823e91d1de3fd44d348"
 uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
-version = "1.4.0"
+version = "1.4.1"
 
 [[deps.UUIDs]]
 deps = ["Random", "SHA"]
@@ -1063,39 +1010,15 @@ version = "1.4.1+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═000a42f0-6a6e-11ed-07c8-17d3667314e4
-# ╠═c240b882-90b2-43e0-90d6-266218c9a76e
-# ╠═16ba1e01-598b-4491-9954-32eaa60c2f00
-# ╠═b2515529-b438-43f6-8f4d-1dbeb0cfa9f5
-# ╠═0cbdc6d0-1087-4b12-b95f-906d0d8c5460
-# ╠═39150468-fed6-4b00-9fe3-63864fba61f0
-# ╠═9e2bb0c2-5f3a-4663-b306-85b9c8b550b7
-# ╠═6f1cbff4-96bf-4970-9058-b49044dc6d75
-# ╠═ef7fde60-db68-4b68-a2fd-07e9957e64a8
-# ╠═31680638-5366-4511-90f0-fbf4160e673e
-# ╠═2cf19c10-0f9d-41d2-8dc7-23cbbd492b2e
-# ╠═971cee94-854d-443d-9708-dc5df9c210cc
-# ╠═9a3f6b30-10da-40dd-8ede-58d7f1b4d221
-# ╠═0b8088f6-ef9f-4e79-93cb-78b1c32eb931
-# ╠═671f58ec-e767-47bc-890e-810386e99f40
-# ╠═6b23b919-455b-41ab-b768-ef30cbd2926f
-# ╠═30f1cd9c-9380-4d45-9e88-3b3577bb72f3
-# ╠═383a2e81-f99f-410f-b05f-7aeb49465412
-# ╠═cbb7b09f-b226-4e27-91f1-4840f7e30f36
-# ╠═48020117-7bef-4368-9524-c2c798570330
-# ╠═68928913-4b3a-44d8-b36f-25063b09081c
-# ╠═c90ef9ab-0be9-4bf1-91f5-e7a40145f1a5
-# ╠═936fe4e4-b3e8-457b-b0a9-03d98e22ec9f
-# ╠═83dff1fe-bf17-45a8-b5d4-c652e7dc947a
-# ╠═c949ba4f-ddca-4f11-a9b1-46218c90ffc8
-# ╠═18dbf9f7-cc95-43ea-b88c-336983423387
-# ╠═5014605a-f2c0-4ad4-bf6a-f99d55dcb79d
-# ╠═28057d46-614d-48f2-a479-a87d33045b20
-# ╠═f46951c4-4b38-4a70-b012-a9b3487f0c5a
-# ╠═82afc2ec-5faa-4504-a4c2-70d525c3a1af
-# ╠═f9db4bbb-01a3-492d-acb0-3ef504d4e334
-# ╠═a7a1cb67-7b56-4d70-8cf3-2bbc8b4042bd
-# ╠═d4a85d76-d7c0-49b1-a783-5d211daa44a7
-# ╠═4edc25ba-8bbd-42c6-9584-28e259a37bf5
+# ╠═d2a9c834-6cd0-11ed-0559-e12f1057e2d5
+# ╠═8c70cd74-85fa-4b2a-82f8-ab4f1b1ac3bb
+# ╠═c493b518-2faf-4b02-a0e3-9b6e0cf6b186
+# ╠═00b9aba7-05bb-429d-bb03-5fd83237c803
+# ╠═e7d9f371-18c6-4af3-9037-9029b891e197
+# ╠═ec34eae9-c7e9-436e-97b6-a433b36b0329
+# ╠═cf1fd038-a6e5-4bab-958d-8d7f4ec42feb
+# ╠═2ee5e75f-b05f-4664-82ef-255df112d91c
+# ╠═8c36d8d6-55d7-45da-89e5-8146e5fc6234
+# ╠═9db109d5-728a-4e15-8bfa-96ef13ac829f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

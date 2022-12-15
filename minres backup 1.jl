@@ -4,6 +4,19 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
+
+# ╔═╡ 68928913-4b3a-44d8-b36f-25063b09081c
+using SparseArrays
+
 # ╔═╡ 000a42f0-6a6e-11ed-07c8-17d3667314e4
 function multiplyVecs(a::Vector{Float32},b::Vector{Float32})
 	size = length(a);
@@ -94,7 +107,7 @@ begin
 end
 
 # ╔═╡ 2cf19c10-0f9d-41d2-8dc7-23cbbd492b2e
-function graham_schmidt_naive(A )
+function graham_schmidt_naive(A :: Matrix{Float64})
 	r,c = size(A);
 	Q = zeros(r, c);
 	R = zeros(c, c);
@@ -115,8 +128,305 @@ function graham_schmidt_naive(A )
 	return (Q,R)
 end
 
-# ╔═╡ 971cee94-854d-443d-9708-dc5df9c210cc
-graham_schmidt_naive(I(10))
+# ╔═╡ 9a3f6b30-10da-40dd-8ede-58d7f1b4d221
+begin
+	A1 = Matrix{Float64}([3 1; 4 1]);
+	Q1, R1 = graham_schmidt_naive(A1);
+	println(Q1);
+	println(R1);
+	plot();
+	#basecircle();
+	plotvector(A1[:,1], "v1");
+	plotvector(A1[:,2], "v2");
+	plotvector(Q1[:,1], "q1");
+	plotvector(Q1[:,2], "q2");
+end
+
+# ╔═╡ 0b8088f6-ef9f-4e79-93cb-78b1c32eb931
+begin
+	#Instability of GS (????)
+	A2 = Matrix{Float64}([(1 + eps(Float64)) (1 - eps(Float64)); 1 1])
+	Q2, R2 = graham_schmidt_naive(A2);
+	println(Q2);
+	println(R2);
+	plot();
+	basecircle();
+	plotvector(A2[:,1], "v1");
+	plotvector(A2[:,2], "v2");
+	plotvector(Q2[:,1], "q1");
+	plotvector(Q2[:,2], "q2");
+end
+
+# ╔═╡ 671f58ec-e767-47bc-890e-810386e99f40
+function graham_schmidt_fixed(A :: Matrix{Float64})
+	r,c = size(A);
+	Q = zeros(r, c);
+	R = zeros(c, c);
+	for i in 1:r
+		z = A[:, i];
+		for j in 1:(i-1)
+			#Calculate the j-th element as q'v(i)
+			R[j, i] = transpose(Q[:, j]) * A[:, i];
+			#Subtract the component of the j-th vector 
+			z = z - transpose(Q[:, j]) * z * Q[:, j];
+		end
+		R[i, i] = norm(z);
+		Q[:, i] = z / R[i, i];
+	end
+	return (Q,R)
+end
+
+# ╔═╡ 6b23b919-455b-41ab-b768-ef30cbd2926f
+begin
+	Q3, R3 = graham_schmidt_fixed(A1);
+	println(Q3);
+	println(R3);
+	plot();
+	#basecircle();
+	plotvector(A1[:,1], "v1");
+	plotvector(A1[:,2], "v2");
+	plotvector(Q3[:,1], "q1");
+	plotvector(Q3[:,2], "q2");
+end
+
+# ╔═╡ 30f1cd9c-9380-4d45-9e88-3b3577bb72f3
+begin
+	#Instability of GS fixed
+	Q4, R4 = graham_schmidt_fixed(A2);
+	println(Q4);
+	println(R4);
+	plot();
+	basecircle();
+	plotvector(A2[:,1], "v1");
+	plotvector(A2[:,2], "v2");
+	plotvector(Q4[:,1], "q1");
+	plotvector(Q4[:,2], "q2");
+end
+
+# ╔═╡ 383a2e81-f99f-410f-b05f-7aeb49465412
+begin
+	vg = [3, 4];
+	nvg = norm(vg);
+	rotation = [vg[1]/nvg vg[2]/nvg; -vg[2]/nvg vg[1]/nvg];
+	vg_rotated = rotation * vg;
+	plot();
+	basecircle();
+	plotvector(vg, "vg");
+	plotvector(vg_rotated, "vg'");
+end
+
+# ╔═╡ cbb7b09f-b226-4e27-91f1-4840f7e30f36
+begin
+	import PlutoUI
+	print("Change the angle to rotate k!");
+	@bind rotation_angle PlutoUI.Slider(0:360);
+	
+end
+
+# ╔═╡ 48020117-7bef-4368-9524-c2c798570330
+begin
+	plot();
+	basecircle();
+	plotvector(k, "k");
+	k_rotated_angle = [cosd(rotation_angle) sind(rotation_angle); -sind(rotation_angle) cosd(rotation_angle)] * k;
+	plotvector(k_rotated_angle, "rotated");
+end
+
+# ╔═╡ c90ef9ab-0be9-4bf1-91f5-e7a40145f1a5
+function givens_factorization(A)
+	rows, cols = size(A);
+	Qs = [];
+	R = A;
+	for j in 1:cols
+		for i in rows:-1:(j+1)
+			#Compute the rotation for R[i,j-1] - R[i,j]
+			current_norm = sqrt(R[i, j]^2 + R[i-1, j]^2);
+			rot = Matrix(sparse(1.0I, rows, rows));
+			
+			rot[i,i] = rot[i-1,i-1] = R[i-1, j]/current_norm;
+			rot[i-1,i] = -R[i, j]/current_norm;
+			rot[i,i-1] = R[i, j]/current_norm;
+			angle = acosd(R[i-1, j]/current_norm);
+			push!(Qs, [j, i, angle]);
+			R = transpose(rot) * R;
+		end
+	end
+	return (Qs, R);
+end
+
+# ╔═╡ 936fe4e4-b3e8-457b-b0a9-03d98e22ec9f
+function Apply_Rotations(Qs, R)
+	return foldr((x, acc) -> LinearAlgebra.Givens(floor(Int, x[2]-1), floor(Int, x[2]), cosd(x[3]), -sind(x[3])) * acc, Qs, init=R)
+end
+
+# ╔═╡ 83dff1fe-bf17-45a8-b5d4-c652e7dc947a
+begin
+	MATRIX = Matrix{Float64}([
+		0.8147 0.0975 0.1576;
+		0.9058 0.2785 0.9706;
+		0.1270 0.5469 0.9572;
+		0.9134 0.9575 0.4854;
+		0.6324 0.9649 0.8003
+	]);
+	MATRIX_size, _ = size(MATRIX);
+	Givens_Qs, Givens_R = givens_factorization(MATRIX);
+	#Compute Q
+	#Givens_Q = Givens_Compute_Q(MATRIX_size, Givens_Qs)
+	#Givens_Q * Givens_R
+	Apply_Rotations(Givens_Qs, Givens_R)
+end
+
+# ╔═╡ c949ba4f-ddca-4f11-a9b1-46218c90ffc8
+begin
+	#Householder reflection of k wrt e1
+	H_e1 = I - 2 * e1 * transpose(e1);
+	k_reflected = H_e1 * k;
+	plot();
+	basecircle();
+	plotvector(k, "k");
+	plotvector(e1, "e1");
+	plotvector(k_reflected, "reflected");
+end
+
+# ╔═╡ 18dbf9f7-cc95-43ea-b88c-336983423387
+begin
+	# orthogonal
+	println(transpose(H_e1) * H_e1 == H_e1 * transpose(H_e1) == I);
+	# symmatric
+	println(transpose(H_e1) == H_e1);
+end
+
+# ╔═╡ 5014605a-f2c0-4ad4-bf6a-f99d55dcb79d
+function householder_vector_product(v::Array{T} where {T<:Number}, w::Array{T} where {T<:Number})
+	return w - 2 * dot(transpose(v), w) * v;
+end
+
+# ╔═╡ 28057d46-614d-48f2-a479-a87d33045b20
+householder_vector_product(e1, k)
+
+# ╔═╡ f46951c4-4b38-4a70-b012-a9b3487f0c5a
+begin
+	#Using a special v, w becomes a multiple of the canonical vectors
+	H_w = [2; 5];
+	H_pv = (H_w + norm(H_w) * e1) / norm(H_w + norm(H_w) * e1);
+	H_nv = (H_w - norm(H_w) * e1) / norm(H_w - norm(H_w) * e1);
+	H_pr = householder_vector_product(H_pv, H_w);
+	H_nr = householder_vector_product(H_nv, H_w);
+	println(H_pr);
+	println(H_nr);
+	plot();
+	plotvector(H_w, "w");
+	plotvector(H_pv, "+v");
+	plotvector(H_nv, "-v");
+	plotvector(H_pr, "H(+v)w");
+	plotvector(H_nr, "H(-v)w");
+end
+
+# ╔═╡ 82afc2ec-5faa-4504-a4c2-70d525c3a1af
+function householder_factorization(A)
+	rows, cols = size(A);
+	Qs = [];
+	Rs = [];
+	for i in 1:cols
+		current_col = A[:, i];
+		if i > 1
+			for j in 1:(i-1)
+				current_col[j] = 0;
+			end
+		end
+		#Build H from current col
+		e_i = I[1:rows, i];
+		current_v = (current_col + norm(current_col) * e_i) / norm(current_col + norm(current_col) * e_i) 
+		current_H = I(rows) - 2 * current_v * transpose(current_v);
+		
+		A = current_H * A;
+		push!(Qs, current_v);
+		push!(Rs, A);
+	end
+	return (Qs, A, Rs);
+end
+
+# ╔═╡ f9db4bbb-01a3-492d-acb0-3ef504d4e334
+begin
+	MATRIX_SAMPLE = [
+		2 -2 18 1;
+		2  1  0 11;
+		1  2  0 2;
+		0  1  4 2;
+	]
+	Qs, R, Rs = householder_factorization(MATRIX_SAMPLE)
+end
+
+# ╔═╡ a7a1cb67-7b56-4d70-8cf3-2bbc8b4042bd
+begin
+	#TEST
+	MyMat = [
+		0.7 1.2 1.3;
+		-1.2 0.8 0.6;
+		1.2  -0.8  -1;
+	];
+	MyMat_Qs, MyMat_R, MyMat_Rs = householder_factorization(MyMat);
+	w_t = MyMat[:, 1];
+	v_t = MyMat_Qs[1];
+	first_reflected = MyMat_Rs[1][:,1];
+	plot();
+	##SPHERE
+	basesphere();
+		
+	plot!([0,w_t[1]], [0, w_t[2]], [0, w_t[3]], arrow=true, color=:red, labels="v(1)", linewidth = 3);
+	plot!([0,v_t[1]], [0, v_t[2]], [0, v_t[3]], arrow=true, color=:green, labels="w(1)", linewidth = 3);
+	plot!([0,v_t[1]], [0, v_t[2]], [0, v_t[3]], seriestype = :straightline, linestyle=:dashdot, color=:green, labels="", linewidth = 3);
+	v_t_p = [0 1 0;-1 0 0; 0 0 1] * v_t;
+	plot!([0,v_t_p[1]], [0, v_t_p[2]], [0, v_t_p[3]], seriestype = :straightline, linestyle=:dashdot, color=:blue, labels="mirror", linewidth = 3);
+	plot!([0,first_reflected[1]], [0, first_reflected[2]], [0, first_reflected[3]], arrow=true, color=:magenta, labels="v(1)'", linewidth = 3);
+end
+
+# ╔═╡ d4a85d76-d7c0-49b1-a783-5d211daa44a7
+begin
+	w_t_second = MyMat_Rs[1][:, 2];
+	v_t_wrong = (w_t_second + norm(w_t_second) * transpose([0 1 0])) / norm(w_t_second + norm(w_t_second) * transpose([0 1 0]))
+	current_H_wrong = I(3) - 2 * v_t_wrong * transpose(v_t_wrong);
+	reflected_wrong = current_H_wrong * MyMat_Rs[1];
+	
+	first_after_wrong = reflected_wrong[:, 1];
+	second_after_wrong = reflected_wrong[:, 2];
+
+	print(first_after_wrong);
+
+	plot();
+	##SPHERE
+	basesphere();
+		
+	plot!([0,w_t_second[1]], [0, w_t_second[2]], [0, w_t_second[3]], arrow=true, color=:yellow, labels="v(2)", linewidth = 3);
+	plot!([0,v_t_wrong[1]], [0, v_t_wrong[2]], [0, v_t_wrong[3]], arrow=true, color=:green, labels="w(2)", linewidth = 3);
+	plot!([0,v_t_wrong[1]], [0, v_t_wrong[2]], [0, v_t_wrong[3]], seriestype = :straightline, linestyle=:dashdot, color=:green, labels="", linewidth = 3);
+	v_t_s_w = [1 0 0; 0 0 1;0 -1 0;] * v_t_wrong;
+	plot!([0,v_t_s_w[1]], [0, v_t_s_w[2]], [0, v_t_s_w[3]], seriestype = :straightline, linestyle=:dashdot, color=:blue, labels="mirror", linewidth = 3);
+	plot!([0,first_after_wrong[1]], [0, first_after_wrong[2]], [0, first_after_wrong[3]], arrow=true, color=:red, labels="v(1)'", linewidth = 3);
+	plot!([0,second_after_wrong[1]], [0, second_after_wrong[2]], [0, second_after_wrong[3]], arrow=true, color=:magenta, labels="v(2)'", linewidth = 3);
+
+end
+
+# ╔═╡ 4edc25ba-8bbd-42c6-9584-28e259a37bf5
+begin
+	#w_t_second = MyMat_Rs[1][:, 2];
+	v_t_second = MyMat_Qs[2];
+	second_reflected = MyMat_Rs[2][:, 2];
+	first_after = MyMat_Rs[2][:, 1];
+	print(v_t_second);
+	plot();
+	##SPHERE
+	basesphere();
+		
+	plot!([0,w_t_second[1]], [0, w_t_second[2]], [0, w_t_second[3]], arrow=true, color=:yellow, labels="v(2)", linewidth = 3);
+	plot!([0,v_t_second[1]], [0, v_t_second[2]], [0, v_t_second[3]], arrow=true, color=:green, labels="w(2)", linewidth = 3);
+	plot!([0,v_t_second[1]], [0, v_t_second[2]], [0, v_t_second[3]], seriestype = :straightline, linestyle=:dashdot, color=:green, labels="", linewidth = 3);
+	v_t_s = [1 0 0; 0 0 1;0 -1 0;] * v_t_second;
+	plot!([0,v_t_s[1]], [0, v_t_s[2]], [0, v_t_s[3]], seriestype = :straightline, linestyle=:dashdot, color=:blue, labels="mirror", linewidth = 3);
+	plot!([0,first_after[1]], [0, first_after[2]], [0, first_after[3]], arrow=true, color=:red, labels="v(1)'", linewidth = 3);
+	plot!([0,second_reflected[1]], [0, second_reflected[2]], [0, second_reflected[3]], arrow=true, color=:magenta, labels="v(2)'", linewidth = 3);
+
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -326,9 +636,9 @@ version = "0.21.0+0"
 
 [[deps.Glib_jll]]
 deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Pkg", "Zlib_jll"]
-git-tree-sha1 = "d3b3624125c1474292d0d8ed0f65554ac37ddb23"
+git-tree-sha1 = "fb83fbe02fe57f2c068013aa94bcdf6760d3a7a7"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.74.0+2"
+version = "2.74.0+1"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -492,9 +802,9 @@ version = "1.42.0+0"
 
 [[deps.Libiconv_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "c7cb1f5d892775ba13767a87c7ada0b980ea0a71"
+git-tree-sha1 = "42b62845d70a619f063a7da093d995ec8e15e778"
 uuid = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
-version = "1.16.1+2"
+version = "1.16.1+1"
 
 [[deps.Libmount_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1074,7 +1384,6 @@ version = "1.4.1+0"
 # ╠═ef7fde60-db68-4b68-a2fd-07e9957e64a8
 # ╠═31680638-5366-4511-90f0-fbf4160e673e
 # ╠═2cf19c10-0f9d-41d2-8dc7-23cbbd492b2e
-# ╠═971cee94-854d-443d-9708-dc5df9c210cc
 # ╠═9a3f6b30-10da-40dd-8ede-58d7f1b4d221
 # ╠═0b8088f6-ef9f-4e79-93cb-78b1c32eb931
 # ╠═671f58ec-e767-47bc-890e-810386e99f40
@@ -1085,6 +1394,8 @@ version = "1.4.1+0"
 # ╠═48020117-7bef-4368-9524-c2c798570330
 # ╠═68928913-4b3a-44d8-b36f-25063b09081c
 # ╠═c90ef9ab-0be9-4bf1-91f5-e7a40145f1a5
+# ╠═dae94ca7-fecf-4bbf-8ed9-343ada68e790
+# ╠═7810b577-f352-4270-80b8-33631da0297b
 # ╠═936fe4e4-b3e8-457b-b0a9-03d98e22ec9f
 # ╠═83dff1fe-bf17-45a8-b5d4-c652e7dc947a
 # ╠═c949ba4f-ddca-4f11-a9b1-46218c90ffc8
